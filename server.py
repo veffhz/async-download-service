@@ -46,7 +46,7 @@ async def kill(pid):
 
 
 async def on_shutdown(_app):
-    logging.debug("Shutting down!!!")
+    logging.debug('Shutting down!')
 
     # stopped all tasks
     for task in asyncio.all_tasks():
@@ -114,8 +114,8 @@ async def handle_index_page(request):
 def parse_args() -> argparse.Namespace:
     """Parse script arguments."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("-v", "--verbose", help="increase output verbosity",
-                        action="store_true")
+    parser.add_argument('-v', '--verbose', help='increase output verbosity',
+                        action='store_true')
 
     parser.add_argument('-d', '--delay', help='Delay for response service',
                         type=int, default=1)
