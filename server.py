@@ -96,6 +96,9 @@ async def archivate(request):
     except asyncio.CancelledError:
         logging.warning('Download was interrupted!')
 
+        # отпускаем перехваченный CancelledError
+        raise
+
     finally:
         if proc.returncode is None:
             await kill(proc.pid)
