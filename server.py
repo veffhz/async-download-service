@@ -6,11 +6,8 @@ from pathlib import Path
 import aiofiles
 from aiohttp import web
 
-PHOTO_PATH = None
-INTERVAL_SECS = 0
 FILENAME = 'photos.zip'
 DEFAULT_PHOTO_PATH = 'test_photos'
-CHUNK_SIZE = 1024 * 1024
 ZIP_COMMAND_TEMPLATE = 'zip -r -q -'
 KILL_COMMAND_TEMPLATE = 'pkill -9 -P'
 
@@ -58,7 +55,7 @@ async def on_shutdown(_app):
 
 async def archivate(request):
     archive_hash = request.match_info.get('archive_hash')
-    photo_dir = await get_photo_dir(PHOTO_PATH)
+    photo_dir = await get_photo_dir(request.app['photo_path'])
 
     if not photo_dir.joinpath(archive_hash).exists():
         raise web.HTTPNotFound(text='Архив не существует или был удален')
@@ -84,13 +81,13 @@ async def archivate(request):
 
     try:
         while not proc.stdout.at_eof():
-            data = await proc.stdout.read(CHUNK_SIZE)
+            data = await proc.stdout.read(request.app['chunk_size'])
             content = bytearray(data)
 
             logging.debug('Sending archive chunk ...')
 
             await response.write(content)
-            await asyncio.sleep(INTERVAL_SECS)
+            await asyncio.sleep(request.app['delay'])
 
         await response.write_eof()
 
@@ -132,10 +129,12 @@ if __name__ == '__main__':
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
 
-    INTERVAL_SECS = args.delay
-    PHOTO_PATH = args.photo_path
-
     app = web.Application()
+
+    app['delay'] = args.delay
+    app['photo_path'] = args.photo_path
+    app['chunk_size'] = 1024 * 1024
+
     app.on_shutdown.append(on_shutdown)
     app.add_routes([
         web.get('/', handle_index_page),
