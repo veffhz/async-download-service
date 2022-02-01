@@ -56,7 +56,7 @@ async def on_shutdown(_app):
 
 
 async def archivate(request):
-    archive_hash = request.match_info.get('archive_hash')
+    archive_hash = request.match_info['archive_hash']
     photo_dir = await get_photo_dir(request.app['photo_path'])
 
     if not photo_dir.joinpath(archive_hash).exists():
