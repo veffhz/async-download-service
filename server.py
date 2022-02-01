@@ -4,13 +4,12 @@ import argparse
 from pathlib import Path
 
 import aiofiles
-from aiofiles.os import path as aiopath # noqa
 from aiohttp import web
+from aiofiles.os import path as aiopath # noqa
 
 FILENAME = 'photos.zip'
 DEFAULT_PHOTO_PATH = 'test_photos'
-ZIP_COMMAND_TEMPLATE = 'zip -r -q -'
-KILL_COMMAND_TEMPLATE = 'pkill -9 -P'
+ZIP_COMMAND_TEMPLATE = ['zip', '-r', '-q', '-']
 
 
 async def get_photo_dir(photo_path) -> Path:
@@ -33,20 +32,6 @@ async def get_photo_dir(photo_path) -> Path:
         .absolute()
 
 
-async def kill(pid):
-    """
-    убивает процесс bash и процесс zip по pid
-    :param pid:
-    """
-
-    bash_command = f'{KILL_COMMAND_TEMPLATE} {pid}'
-
-    await asyncio.create_subprocess_shell(
-        bash_command, stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
-
-
 async def on_shutdown(_app):
     logging.debug('Shutting down!')
 
@@ -59,13 +44,16 @@ async def archivate(request):
     archive_hash = request.match_info['archive_hash']
     photo_dir = await get_photo_dir(request.app['photo_path'])
 
-    if not photo_dir.joinpath(archive_hash).exists():
+    is_exist = await aiopath.exists(photo_dir.joinpath(archive_hash))
+
+    if not is_exist:
         raise web.HTTPNotFound(text='Архив не существует или был удален')
 
-    bash_command = f'{ZIP_COMMAND_TEMPLATE} {archive_hash}'
+    bash_command = ZIP_COMMAND_TEMPLATE.copy()
+    bash_command.append(archive_hash)
 
-    proc = await asyncio.create_subprocess_shell(
-        bash_command, cwd=photo_dir,
+    proc = await asyncio.create_subprocess_exec(
+        *bash_command, cwd=photo_dir,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE
     )
@@ -93,8 +81,6 @@ async def archivate(request):
 
         await response.write_eof()
 
-        return response
-
     except asyncio.CancelledError:
         logging.warning('Download was interrupted!')
 
@@ -103,8 +89,11 @@ async def archivate(request):
 
     finally:
         if proc.returncode is None:
-            await kill(proc.pid)
             logging.warning('Stopped send!')
+            proc.kill()
+            await proc.communicate()
+
+        return response
 
 
 async def handle_index_page(request):
