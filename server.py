@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 import aiofiles
+from aiofiles.os import path as aiopath # noqa
 from aiohttp import web
 
 FILENAME = 'photos.zip'
@@ -21,7 +22,8 @@ async def get_photo_dir(photo_path) -> Path:
 
     # если передан полный путь
     path = Path(photo_path)
-    if path.is_dir():
+    is_dir = await aiopath.isdir(path)
+    if is_dir:
         return path
 
     # путь по умолчанию
